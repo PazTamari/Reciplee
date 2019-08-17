@@ -9,7 +9,7 @@ logging.getLogger('flask_assistant').setLevel(logging.DEBUG)
 app = Flask(__name__)
 assist = Assistant(app, route='/')
 
-@assist.action('get-recipe', method=['GET','POST'])
+@assist.action('get-recipe')
 def get_recipe(recipe):
     speech = "Do you want {}?".format(recipe)
     return ask(speech)
