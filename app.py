@@ -1,18 +1,18 @@
 # import flask dependencies
 from flask import Flask
+from flask_assistant import Assistant, tell, ask
+
+import logging
+logging.getLogger('flask_assistant').setLevel(logging.DEBUG)
 
 # initialize the flask app
 app = Flask(__name__)
+assist = Assistant(app, route='/')
 
-# default route
-@app.route('/')
-def index():
-    return 'Hello World!'
-
-# create a route for webhook
-@app.route('/webhook')
-def webhook():
-    return 'Hello World!'
+@assist.action('get-recipe')
+def get_recipe(recipe):
+    speech = "Do you want {}?".format(recipe)
+    return ask(speech)
 
 # run the app
 if __name__ == '__main__':
