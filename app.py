@@ -16,4 +16,4 @@ def get_recipe(recipe):
 
 # run the app
 if __name__ == '__main__':
-   app.run(debug=True, host='0.0.0.0', ssl_context='adhoc')
+   app.run(debug=True, host='0.0.0.0')
