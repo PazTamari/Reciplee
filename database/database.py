@@ -20,6 +20,10 @@ class Mongo(object):
         result = self.db.recipes.find_one({"name":recipe})
         return result
 
+    def get_ingredient(self, ingredient_id):
+        result = self.db.ingredients.find_one({"id": ingredient_id})
+        return result
+
     def is_authonticate(self):
         if self.authonticate:
             return True
