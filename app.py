@@ -12,6 +12,7 @@ logging.getLogger('flask_assistant').setLevel(logging.DEBUG)
 
 FIRST_STEP = 0
 LIFESPAN = 100
+AWESOME_LIST = ["Awesome", "Great", "Wonderful", "What a"]
 
 class FlaskApp(Flask):
     def __init__(self, *args, **kwargs):
@@ -23,49 +24,53 @@ app = FlaskApp(__name__)
 assist = Assistant(app, route='/')
 ingredient_string_template = "Ok you need {amount} {measure} of {name}\n"
 
-AWESOME_LIST = ["Awesome", "Great", "Wonderful", "What a"]
 @assist.action('get-recipe')
 def get_recipe(recipe, participants):
-    print(app.mongo.get_ingredient(1))
-    recipeDoc = app.mongo.get_recipe(recipe)
-    print(recipeDoc)
-    #final = participants/recipeDoc['amount']
+    # print(app.mongo.get_ingredient(1))
+    recipe_doc = app.mongo.get_translated_recipe(recipe)
+    # print(recipe_doc)
+    # final = participants/recipe_doc['amount']
 
     context_manager.add("make-food", lifespan=10)
-    first_step = 0
-    if recipeDoc:
-        context_manager.set("make-food", "recipe", recipe)
-        context_manager.set("make-food", "step", first_step)
-        context_manager.set("make-food", "participants", participants)
-        speech = ""
-        for i in recipeDoc['ingredients']:
-            print(get_ingredient_string(i))
-            speech = speech.join(get_ingredient_string(i))
-            print(speech)
 
-        print(speech)
-        return tell(speech)
-    else:
+    if not recipe_doc:
         speech = "Could not find a recipe for {}. Do you want to search different recipe?".format(recipe)
         return ask(speech)
-    recipe = Recipe(recipe_doc)
+    recipeObj = Recipe(recipe_doc, participants)
     context_manager.add("make-food", lifespan=LIFESPAN)
-    context_manager.set("make-food", "recipe", json.dumps(recipe_doc))
+    context_manager.set("make-food", "recipe", recipe)
     context_manager.set("make-food", "step", FIRST_STEP)
+    context_manager.set("make-food", "participants", participants)
 
-
-    speech = "{random} choice! We found {recipe}".format(random=choice(AWESOME_LIST), recipe=recipe)
+    speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}".format(
+        random=choice(AWESOME_LIST),
+        recipe=recipe,
+        ingredients=get_ingredients_to_speech(recipeObj))
     return tell(speech)
 
+def get_ingredients_to_speech(recipeObj):
+    last_ingredient = recipeObj.ingredients[-1]
+    txt = ""
+    # print (recipeObj.ingredients)
+    for ingredient in recipeObj.ingredients:
+        if ingredient.name == last_ingredient.name:
+            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(amount=ingredient.amount,
+                                                                         measure=ingredient.measure,
+                                                                         name=ingredient.name)
+        else:
+            txt = txt + "{amount} {measure} of {name}, ".format(amount=ingredient.amount,
+                                                                measure=ingredient.measure,
+                                                                name=ingredient.name)
+    return txt
 
 @assist.action('next-step')
 def next_step():
     context = context_manager.get('make-food')
     current_step = context.parameters['step']
-    recipeDoc = app.mongo.get_recipe(context.parameters['recipe'])
-    print(recipeDoc)
-    if recipeDoc:
-        speech = recipeDoc['steps'][int(current_step)]['description']
+    recipe_doc = app.mongo.get_recipe(context.parameters['recipe'])
+    print(recipe_doc)
+    if recipe_doc:
+        speech = recipe_doc['steps'][int(current_step)]['description']
         context_manager.set('make-food', 'step', int(current_step) + 1)
         return tell(speech)
     else:
@@ -75,11 +80,6 @@ def next_step():
     speech = str(recipe_doc.get("steps")[int(current_step)].get('description'))
     context_manager.set('make-food', 'step', int(current_step) + 1)
     return tell(speech)
-
-def get_ingredient_string(ingredient):
-    return (ingredient_string_template .format(amount=ingredient['amount'],measure=ingredient['measure'],name=app.mongo.get_ingredient(ingredient['id'])['name']))
-
-
 
 
 # run the app
