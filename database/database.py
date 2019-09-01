@@ -1,8 +1,5 @@
-import pymongo
+import json
 from pymongo import MongoClient
-from pprint import pprint
-# connect to MongoDB, change the << MONGODB URL >> to reflect your own connection string
-
 
 class Mongo(object):
     def __init__(self, uri="mongodb://reciplee:reciplee1@ds245532.mlab.com:45532/reciplee",
@@ -17,12 +14,28 @@ class Mongo(object):
             self.authonticate = False
 
     def get_recipe(self, recipe):
-        result = self.db.recipes.find_one({"name":recipe})
+        result = self.db.recipes.find_one({"name": recipe})
+        result["_id"] = ""  # Remove _id to support recipe in flask context (could not convert to JSON with _id)
         return result
 
     def get_ingredient(self, ingredient_id):
         result = self.db.ingredients.find_one({"id": ingredient_id})
         return result
+
+    def get_translated_recipe(self, recipe):
+        recipe_doc = self.get_recipe(recipe)
+        if not recipe_doc:
+            return ""
+        ingredients_list = recipe_doc.get("ingredients")
+        for ingredient in ingredients_list:
+            ingredient["name"] = self.db.ingredients.find_one({"id": ingredient.get("id")}).get("name")
+        return recipe_doc
+
+    def get_recipe_for_work(self, recipe):
+        recipe = self.get_translated_recipe(recipe)
+        if not recipe:
+            return ""
+        
 
     def is_authonticate(self):
         if self.authonticate:
@@ -31,5 +44,7 @@ class Mongo(object):
 
 if __name__ == '__main__':
     m = Mongo()
-    print(m.is_authonticate())
-    print(m.db.recipes.find_one({"name":"lasagna"}))
+    lasagna = m.get_translated_recipe("lasagna")
+    print(lasagna)
+    print(json.dumps(lasagna, sort_keys=True))
+    # print(lasagna)

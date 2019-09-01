@@ -3,9 +3,15 @@ from flask import Flask
 from database import database
 from flask_assistant import context_manager
 from flask_assistant import Assistant, tell, ask
+from Recipe import Recipe
+from random import choice
+import json
 
 import logging
 logging.getLogger('flask_assistant').setLevel(logging.DEBUG)
+
+FIRST_STEP = 0
+LIFESPAN = 100
 
 class FlaskApp(Flask):
     def __init__(self, *args, **kwargs):
@@ -17,6 +23,7 @@ app = FlaskApp(__name__)
 assist = Assistant(app, route='/')
 ingredient_string_template = "Ok you need {amount} {measure} of {name}\n"
 
+AWESOME_LIST = ["Awesome", "Great", "Wonderful", "What a"]
 @assist.action('get-recipe')
 def get_recipe(recipe, participants):
     print(app.mongo.get_ingredient(1))
@@ -41,6 +48,15 @@ def get_recipe(recipe, participants):
     else:
         speech = "Could not find a recipe for {}. Do you want to search different recipe?".format(recipe)
         return ask(speech)
+    recipe = Recipe(recipe_doc)
+    context_manager.add("make-food", lifespan=LIFESPAN)
+    context_manager.set("make-food", "recipe", json.dumps(recipe_doc))
+    context_manager.set("make-food", "step", FIRST_STEP)
+
+
+    speech = "{random} choice! We found {recipe}".format(random=choice(AWESOME_LIST), recipe=recipe)
+    return tell(speech)
+
 
 @assist.action('next-step')
 def next_step():
@@ -55,9 +71,14 @@ def next_step():
     else:
         speech = "Could not find a recipe for {}. Do you want to search different recipe?".format(context.parameters['recipe'])
         return ask(speech)
+    recipe_doc = json.loads(recipe_context)
+    speech = str(recipe_doc.get("steps")[int(current_step)].get('description'))
+    context_manager.set('make-food', 'step', int(current_step) + 1)
+    return tell(speech)
 
 def get_ingredient_string(ingredient):
     return (ingredient_string_template .format(amount=ingredient['amount'],measure=ingredient['measure'],name=app.mongo.get_ingredient(ingredient['id'])['name']))
+
 
 
 
