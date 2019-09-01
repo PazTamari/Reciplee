@@ -2,7 +2,7 @@
 from flask import Flask
 from database import database
 from flask_assistant import context_manager
-from flask_assistant import Assistant, tell, ask
+from flask_assistant import Assistant, tell, ask, event
 from Recipe import Recipe
 from random import choice
 import json
@@ -34,18 +34,44 @@ def get_recipe(recipe, participants):
     context_manager.add("make-food", lifespan=10)
 
     if not recipe_doc:
-        speech = "Could not find a recipe for {}. Do you want to search different recipe?".format(recipe)
-        return ask(speech)
+        context_manager.clear_all()
+        return tell(recipe_not_exist(recipe))
     recipeObj = Recipe(recipe_doc, participants)
     context_manager.add("make-food", lifespan=LIFESPAN)
     context_manager.set("make-food", "recipe", recipe)
-    context_manager.set("make-food", "step", FIRST_STEP)
+    context_manager.set("make-food", "next_step", FIRST_STEP)
     context_manager.set("make-food", "participants", participants)
 
-    speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}".format(
+
+    speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}." \
+             " Do you want to start making it?".format(
         random=choice(AWESOME_LIST),
         recipe=recipe,
         ingredients=get_ingredients_to_speech(recipeObj))
+    return ask(speech)
+
+
+@assist.action('get-recipe - yes')
+def first_step():
+    return next_step()
+
+@assist.action('next-step')
+def next_step():
+    context = context_manager.get('make-food')
+    try:
+        next_step = context.parameters.get('next_step')
+    except Exception:
+        speech = "Hold your horses! please ask for a recipe first. Please try something like how to make lasagna for 2 people?"
+        return tell(speech)
+    recipe_doc = app.mongo.get_recipe(context.parameters.get('recipe'))
+    if int(next_step) >= len(recipe_doc.get("steps")):
+        # no more steps
+        speech = "You finished the recipe! bonappetit"
+        context_manager.clear_all()
+        return tell(speech)
+
+    speech = recipe_doc.get('steps')[int(next_step)].get('description')
+    context_manager.set('make-food', 'next_step', int(next_step) + 1)
     return tell(speech)
 
 def get_ingredients_to_speech(recipeObj):
@@ -63,24 +89,8 @@ def get_ingredients_to_speech(recipeObj):
                                                                 name=ingredient.name)
     return txt
 
-@assist.action('next-step')
-def next_step():
-    context = context_manager.get('make-food')
-    current_step = context.parameters['step']
-    recipe_doc = app.mongo.get_recipe(context.parameters['recipe'])
-    print(recipe_doc)
-    if recipe_doc:
-        speech = recipe_doc['steps'][int(current_step)]['description']
-        context_manager.set('make-food', 'step', int(current_step) + 1)
-        return tell(speech)
-    else:
-        speech = "Could not find a recipe for {}. Do you want to search different recipe?".format(context.parameters['recipe'])
-        return ask(speech)
-    recipe_doc = json.loads(recipe_context)
-    speech = str(recipe_doc.get("steps")[int(current_step)].get('description'))
-    context_manager.set('make-food', 'step', int(current_step) + 1)
-    return tell(speech)
-
+def recipe_not_exist(recipe):
+    return "Could not find a recipe for {}. Please search for a different recipe?".format(recipe)
 
 # run the app
 if __name__ == '__main__':

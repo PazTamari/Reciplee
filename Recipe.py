@@ -34,7 +34,6 @@ class Recipe(object):
             res.append(ingredient.to_json())
 
     def __str__(self):
-        ingredients_list_str = ','.join("{}".format(ingredient.name) for ingredient in self.ingredients)
         return  "{name} recipe for {amount} people, including {ingredients}".format(name=self.name, amount=self.amount,
                                                                                     ingredients=self.ingredient_list())
     def ingredient_list(self):

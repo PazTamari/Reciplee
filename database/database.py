@@ -10,12 +10,12 @@ class Mongo(object):
         try:
             self.authonticate = self.db.authenticate(user, password)
         except Exception as err:
-            print("could not authonticate")
+            print("could not authenticate")
             self.authonticate = False
 
     def get_recipe(self, recipe):
         result = self.db.recipes.find_one({"name": recipe})
-        result["_id"] = ""  # Remove _id to support recipe in flask context (could not convert to JSON with _id)
+        # result["_id"] = ""  # Remove _id to support recipe in flask context (could not convert to JSON with _id)
         return result
 
     def get_ingredient(self, ingredient_id):
@@ -30,12 +30,6 @@ class Mongo(object):
         for ingredient in ingredients_list:
             ingredient["name"] = self.db.ingredients.find_one({"id": ingredient.get("id")}).get("name")
         return recipe_doc
-
-    def get_recipe_for_work(self, recipe):
-        recipe = self.get_translated_recipe(recipe)
-        if not recipe:
-            return ""
-        
 
     def is_authonticate(self):
         if self.authonticate:
