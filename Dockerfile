@@ -112,16 +112,16 @@ RUN set -x \
     && apk add --no-cache tzdata \
 # forward request and error logs to docker log collector
     && ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
+    && ln -sf /dev/stderr /var/log/nginx/error.log \
 
 # Create new conf for nginx
-    && rm -rf /etc/nginx/conf.d/default.conf
-	&& echo "server {" > /etc/nginx/conf.d/reciplee.conf
-	&& echo "listen       80;" > /etc/nginx/conf.d/reciplee.conf
-	&& echo "server_name  localhost;" > /etc/nginx/conf.d/reciplee.conf
-	&& echo "location / {" > /etc/nginx/conf.d/reciplee.conf
-	&& echo "proxy_pass http://localhost:5000;" > /etc/nginx/conf.d/reciplee.conf
-	&& echo "}" > /etc/nginx/conf.d/reciplee.conf
+    && rm -rf /etc/nginx/conf.d/default.conf \
+	&& echo "server {" > /etc/nginx/conf.d/reciplee.conf \
+	&& echo "listen       80;" > /etc/nginx/conf.d/reciplee.conf \
+	&& echo "server_name  localhost;" > /etc/nginx/conf.d/reciplee.conf \
+	&& echo "location / {" > /etc/nginx/conf.d/reciplee.conf \
+	&& echo "proxy_pass http://localhost:5000;" > /etc/nginx/conf.d/reciplee.conf \
+	&& echo "}" > /etc/nginx/conf.d/reciplee.conf \
 	&& echo "}" > /etc/nginx/conf.d/reciplee.conf
 
 
