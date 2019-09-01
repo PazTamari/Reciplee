@@ -126,7 +126,7 @@ RUN set -x \
 
 
 
-
+CMD ["nginx"]
 
 ENTRYPOINT ["python3"]
 CMD ["/app/app.py"]
