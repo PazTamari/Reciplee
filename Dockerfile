@@ -5,7 +5,7 @@ FROM python:3.7.4-alpine
 COPY ./requirements.txt .
 
 RUN apk add build-base
-RUN pip install -r requirements.txt \
+RUN pip install -r requirements.txt
 
 
 ENV NGINX_VERSION 1.17.3
