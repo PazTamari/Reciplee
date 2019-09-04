@@ -4,7 +4,9 @@ FROM python:3.7.4-alpine
 # WORKDIR /app
 COPY ./requirements.txt .
 
-RUN apk add build-base
+RUN apk add build-base \
+    && apk add python3-dev
+
 RUN pip install -r requirements.txt
 
 
