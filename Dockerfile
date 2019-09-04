@@ -3,8 +3,12 @@ FROM python:3.7.4-alpine
 # COPY ./ /app
 # WORKDIR /app
 COPY ./requirements.txt .
-RUN pip install -r requirements.txt
-
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc and-build-dependencies \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install cryptography \
+    && pip install -r requirements.txt \
+    && apt-get purge -y --auto-remove gcc and-build-dependencies
 
 ENV NGINX_VERSION 1.17.3
 ENV NJS_VERSION   0.3.5
