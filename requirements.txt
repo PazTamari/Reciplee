@@ -2,4 +2,3 @@ flask
 flask_restful
 flask_assistant
 pymongo
-pyOpenSSL
