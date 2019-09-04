@@ -6,7 +6,8 @@ COPY ./requirements.txt .
 
 RUN apk add build-base \
     && apk add python3-dev \
-    && apk add libffi-dev
+    && apk add libffi-dev \
+    && apk add libssl-dev
 
 RUN pip install -r requirements.txt
 
