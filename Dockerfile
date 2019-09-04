@@ -5,9 +5,7 @@ FROM python:3.7.4-alpine
 COPY ./requirements.txt .
 
 RUN apk add build-base \
-    && apk add python3-dev \
-    && apk add libffi-dev \
-    && apk add libssl-dev
+    && apk add python3-dev
 
 RUN pip install -r requirements.txt
 
