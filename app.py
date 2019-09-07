@@ -105,11 +105,7 @@ def choose_current():
 @assist.action('get-recipe - yes - yes')
 def next_step():
     context = context_manager.get('make-food')
-    try:
-        next_step = context.parameters.get('next_step')
-    except Exception:
-        speech = "Hold your horses! please ask for a recipe first. Please try something like how to make lasagna for 2 people?"
-        return tell(speech)
+    next_step = get_current_step()
     # recipe_doc = app.mongo.get_recipe(context.parameters.get('recipe'))
     steps = context.get('recipe_steps')
     print(steps)
@@ -122,7 +118,18 @@ def next_step():
     #speech = recipe_doc.get('steps')[int(next_step)].get('description')
     #context_manager.set('make-food', 'next_step', int(next_step) + 1)
     #return tell(speech)
+@assist.action('get-recipe - yes - yes - more')
+def more():
 
+    context_manager.set('make-food', 'next_step', int(get_current_step()) + 1)
+    return next_step()
+@assist.action('get-recipe - yes - yes - previous')
+def previous():
+    context_manager.set('make-food', 'next_step', int(get_current_step()) - 1)
+    return next_step()
+@assist.action('get-recipe - yes - yes - repeat')
+def repeat():
+    return next_step()
 @assist.action('get-recipe - no')
 def choose_another():
     # print(app.mongo.get_ingredient(1))
@@ -139,6 +146,14 @@ def choose_another():
     speech = "What a {choice} sounds like?".format(choice=recipes[current_recipe]['title'])
     return ask(speech)
 
+def get_current_step():
+    context = context_manager.get('make-food')
+    try:
+        next_step = context.parameters.get('next_step')
+    except Exception:
+        speech = "Hold your horses! please ask for a recipe first. Please try something like how to make lasagna for 2 people?"
+        return tell(speech)
+    return next_step
 def get_ingredients_to_speech(ingredients):
     last_ingredient = ingredients[-1]
     txt = ""
