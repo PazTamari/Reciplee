@@ -8,12 +8,16 @@ from random import choice
 import json
 import requests
 import logging
+import SpoonacularUtils
+
 
 logging.getLogger('flask_assistant').setLevel(logging.DEBUG)
 
 FIRST_STEP = 0
 LIFESPAN = 100
 AWESOME_LIST = ["Awesome", "Great", "Wonderful", "What a"]
+RECIPES_TO_PULL = 10
+DEFAULT_OFFSET = 0
 
 
 class FlaskApp(Flask):
@@ -24,76 +28,40 @@ class FlaskApp(Flask):
 
 # initialize the flask app
 app = FlaskApp(__name__)
-assist = Assistant(app, route='/')
+assist = Assistant(app, route='/', project_id="reciplee-iubkfl")
 ingredient_string_template = "Ok you need {amount} {measure} of {name}\n"
 
-@assist.action('get-recipe')
-def get_recipe(recipe, participants, diet=None, excludeIngredients=None, intolerances=None, type=None):
+@assist.action('get-recipes')
+def get_recipes(recipe, participants, diet=None, excludeIngredients=None, intolerances=None, type=None):
     # print(app.mongo.get_ingredient(1))
-    recipe_doc = app.mongo.get_translated_recipe(recipe)
+    # recipe_doc = app.mongo.get_translated_recipe(recipe)
     # final = participants/recipe_doc['amount']
-    url = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/search"
 
-    querystring = {"diet": diet, "excludeIngredients": excludeIngredients, "intolerances": intolerances, "number": "10",
-                   "offset": "0", "type": type, "query": recipe}
-
-    headers = {
-        'x-rapidapi-host': "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com",
-        'x-rapidapi-key': "0337527ffemsh1130c076beb971dp149cd5jsn1ec4dfe855bd"
-    }
-
-    response = requests.request("GET", url, headers=headers, params=querystring)
-
-    recipes = json.loads(r'' + response.text + '')['results']
-    context_manager.add("make-food", lifespan=10)
+    recipes = SpoonacularUtils.get_recipes(diet, excludeIngredients, intolerances, RECIPES_TO_PULL, DEFAULT_OFFSET,
+                                              type, recipe)
 
     if len(recipes) == 0:
         context_manager.clear_all()
         return tell(recipe_not_exist(recipe))
-    # recipeObj = Recipe(recipe_doc, participants)
+
     context_manager.add("make-food", lifespan=LIFESPAN)
     context_manager.set("make-food", "recipes", recipes)
-    context_manager.set("make-food", "current_recipe_index", 0)
-    # context_manager.set("make-food", "recipe", recipe)
-    # context_manager.set("make-food", "next_step", FIRST_STEP)
+    context_manager.set("make-food", "current_recipe_index", -1)
     context_manager.set("make-food", "participants", participants)
 
-    speech = "What a {choice} sounds like?".format(choice=recipes[0]['title'])
-    # speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}." \
-    #         " Do you want to start making it?".format(
-    #    random=choice(AWESOME_LIST),
-    #    recipe=recipe,
-    #    ingredients=get_ingredients_to_speech(recipeObj))
-    return ask(speech)
+    return choose_another()
 
 
-@assist.action('get-recipe - yes')
+@assist.action('get-recipe.choose-current')
 def choose_current():
     context = context_manager.get('make-food')
     recipes = context.parameters.get('recipes')
     current_recipe = int(context.parameters.get('current_recipe_index'))
     recipe_id = int(recipes[current_recipe]['id'])
-    url = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/ingredientWidget.json".format(id=recipe_id)
 
-    headers = {
-        'x-rapidapi-host': "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com",
-        'x-rapidapi-key': "0337527ffemsh1130c076beb971dp149cd5jsn1ec4dfe855bd"
-    }
+    ingredients_response = SpoonacularUtils.get_ingredients(recipe_id)
+    steps_response = SpoonacularUtils.get_steps(recipe_id)
 
-    ingredients_response = requests.request("GET", url, headers=headers)
-
-    context_manager.set("make-food", "next_step", FIRST_STEP)
-
-    url = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/324694/analyzedInstructions"
-
-    querystring = {"stepBreakdown": "false"}
-
-    headers = {
-        'x-rapidapi-host': "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com",
-        'x-rapidapi-key': "0337527ffemsh1130c076beb971dp149cd5jsn1ec4dfe855bd"
-    }
-
-    steps_response = requests.request("GET", url, headers=headers, params=querystring)
     context_manager.set("make-food", "recipe_steps", eval(steps_response.text))
     speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}." \
              " Do you want to start making it?".format(
@@ -102,7 +70,23 @@ def choose_current():
         ingredients=get_ingredients_to_speech(eval(ingredients_response.text)['ingredients']))
     return ask(speech)
 
-@assist.action('get-recipe - yes - yes')
+@assist.action('get-recipe.choose-another')
+def choose_another():
+    context = context_manager.get('make-food')
+    recipes = context.parameters.get('recipes')
+    current_recipe = int(context.parameters.get('current_recipe_index') + 1)
+    if len(recipes) <= current_recipe:
+        return tell("I don't have another recipe")
+
+    context_manager.set("make-food", "current_recipe_index", current_recipe)
+    speech = "Do you want to make {choice}?".format(choice=recipes[current_recipe]['title'])
+    return ask(speech)
+
+@assist.action('get-recipe.choose-current - yes')
+def start_recipe():
+    return next_step()
+
+@assist.action('next-step')
 def next_step():
     context = context_manager.get('make-food')
     next_step = get_current_step()
@@ -118,33 +102,42 @@ def next_step():
     #speech = recipe_doc.get('steps')[int(next_step)].get('description')
     #context_manager.set('make-food', 'next_step', int(next_step) + 1)
     #return tell(speech)
+
+
+#  TRY TO CLEAR CONTEXT
+# @assist.action('clear-contex')
+# def clear_contex():
+#     context = context_manager.get('make-food')
+#     print(dir(context))
+#     context.lifespan=0
+#     context_manager.update([{"name":"/contexts/make-food"}])
+#
+#     context = context_manager.add('test_clean')
+#
+#     # context.lifespan = 0
+#     # context_manager.clear_all()
+#     if context != None:
+#         return tell("exist!")
+#     else:
+#         return tell("not exist")
+
+
+
+
+
 @assist.action('get-recipe - yes - yes - more')
 def more():
-
     context_manager.set('make-food', 'next_step', int(get_current_step()) + 1)
     return next_step()
+
 @assist.action('get-recipe - yes - yes - previous')
 def previous():
     context_manager.set('make-food', 'next_step', int(get_current_step()) - 1)
     return next_step()
+
 @assist.action('get-recipe - yes - yes - repeat')
 def repeat():
     return next_step()
-@assist.action('get-recipe - no')
-def choose_another():
-    # print(app.mongo.get_ingredient(1))
-    # recipe_doc = app.mongo.get_translated_recipe(recipe)
-    # print(recipe_doc)
-    # final = participants/recipe_doc['amount']
-    context = context_manager.get('make-food')
-    recipes = context.parameters.get('recipes')
-    current_recipe = int(context.parameters.get('current_recipe_index') + 1)
-    if len(recipes) <= current_recipe:
-        return tell("I don't have another recepies")
-
-    context_manager.set("make-food", "current_recipe_index", current_recipe)
-    speech = "What a {choice} sounds like?".format(choice=recipes[current_recipe]['title'])
-    return ask(speech)
 
 def get_current_step():
     context = context_manager.get('make-food')
@@ -154,6 +147,7 @@ def get_current_step():
         speech = "Hold your horses! please ask for a recipe first. Please try something like how to make lasagna for 2 people?"
         return tell(speech)
     return next_step
+
 def get_ingredients_to_speech(ingredients):
     last_ingredient = ingredients[-1]
     txt = ""
