@@ -91,51 +91,43 @@ def choose_another():
 
 @assist.action('get-recipe.choose-current - yes')
 def start_recipe():
-    context_manager.set("make-food", "next_step", FIRST_STEP)
-    return next_step()
+    context_manager.set("make-food", "current_step", FIRST_STEP)
+    return repeat_step()
 
 @assist.action('next-step')
 def next_step():
-    context = context_manager.get('make-food')
-    next_step = get_next_step()
-    steps = json.loads(str(context.parameters.get('recipe_steps')))
-
-    if int(next_step) >= len(steps[0].get("steps")):
-       # no more steps
-       speech = "You finished the recipe! bonappetit"
-       context_manager.clear_all()
-       return tell(speech)
-
-    context_manager.set('make-food', 'next_step', int(next_step) + 1)
-    pre_speach = ""
-    if int(next_step) == 0:
-        pre_speach = "Now, I will now tell you how to make this recipe. " \
-                     "You can ask for the next, previous or current step. Let's start with the first step! \n"
-
-    return tell(pre_speach + steps[0].get("steps")[int(next_step)].get("step"))
+    return get_step(int(get_current_step() + 1))
 
 @assist.action('previous-step')
 def previous_step():
-    context = context_manager.get('make-food')
-    next_step = get_next_step()
-
-    if next_step == 1:
-        return repeat_step()
-
-    steps = json.loads(str(context.parameters.get('recipe_steps')))
-    context_manager.set('make-food', 'next_step', int(next_step) - 1)
-    return tell(steps[0].get("steps")[int(next_step - 2)].get("step"))
-
-
+    return get_step((get_current_step() - 1))
 
 @assist.action('repeat-step')
 def repeat_step():
-    # TODO: make repeat step
-    return next_step()
+    return get_step(int(get_current_step()))
+
+def get_step(step_number):
+    context = context_manager.get('make-food')
+    requested_step = step_number
+    steps = json.loads(str(context.parameters.get('recipe_steps')))
+
+    if int(requested_step) >= len(steps[0].get("steps")):
+        # no more steps
+        speech = "You finished the recipe! bonappetit"
+        context_manager.clear_all()
+        return tell(speech)
+
+    context_manager.set('make-food', 'current_step', int(requested_step))
+    pre_speach = ""
+    if int(requested_step) == 0:
+        pre_speach = "I will now tell you how to make this recipe. " \
+                     "You can ask for the next, previous or current step. Let's start with the first step! \n"
+
+    return tell(pre_speach + steps[0].get("steps")[int(requested_step)].get("step"))
+
+
 def get_amount_coefficient(recipe_id, requested_servings):
     information_response = SpoonacularUtils.get_recipe_information(recipe_id)
-    print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
-    print(json.loads(r'' + information_response.text + '')['servings'])
     return requested_servings/json.loads(r'' + information_response.text + '')['servings']
 
 def is_recipe_has_single_step_section(recipe_id):
@@ -166,23 +158,21 @@ def is_recipe_has_single_step_section(recipe_id):
 
 
 
-@assist.action('get-recipe - yes - yes - more')
-def more():
-    context_manager.set('make-food', 'next_step', int(get_next_step()) + 1)
-    return next_step()
+#@assist.action('get-recipe - yes - yes - more')
+#def more():
+#    context_manager.set('make-food', 'current_step', int(get_current_step()))
+#    return current_step()
 
 
 
 
 
-def get_next_step():
+def get_current_step():
+
     context = context_manager.get('make-food')
-    try:
-        next_step = context.parameters.get('next_step')
-    except Exception:
-        speech = "Hold your horses! please ask for a recipe first. Please try something like how to make lasagna for 2 people?"
-        return tell(speech)
-    return next_step
+    current_step = context.parameters.get('current_step')
+
+    return current_step
 
 def get_ingredients_to_speech(ingredients, amount_coefficient):
     last_ingredient = ingredients[-1]
