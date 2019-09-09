@@ -61,13 +61,13 @@ def choose_current():
 
     ingredients_response = SpoonacularUtils.get_ingredients(recipe_id)
     steps_response = SpoonacularUtils.get_steps(recipe_id)
-
+    amount_coefficient = get_amount_coefficient(recipe_id, context.parameters.get('participants'))
     context_manager.set("make-food", "recipe_steps", steps_response.text)
     speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}." \
              " Do you want to start making it?".format(
         random=choice(AWESOME_LIST),
         recipe=recipes[current_recipe]['title'],
-        ingredients=get_ingredients_to_speech(eval(ingredients_response.text)['ingredients']))
+        ingredients=get_ingredients_to_speech(eval(ingredients_response.text)['ingredients'], amount_coefficient))
     return ask(speech)
 
 @assist.action('get-recipe.choose-another')
@@ -77,8 +77,6 @@ def choose_another():
     current_recipe = int(context.parameters.get('current_recipe_index') + 1)
     context_manager.set("make-food", "current_recipe_index", current_recipe)
     recipe_id = int(recipes[current_recipe]['id'])
-    print (len(recipes))
-    print(current_recipe)
 
     if len(recipes) <= current_recipe + 1:
         return tell("Sorry but I don't have any more recipes to make, please ask for another recipe")
@@ -113,7 +111,7 @@ def next_step():
     if int(next_step) == 0:
         pre_speach = "Now, I will now tell you how to make this recipe. " \
                      "You can ask for the next, previous or current step. Let's start with the first step! \n"
-    print (int(next_step))
+
     return tell(pre_speach + steps[0].get("steps")[int(next_step)].get("step"))
 
 @assist.action('previous-step')
@@ -134,6 +132,11 @@ def previous_step():
 def repeat_step():
     # TODO: make repeat step
     return next_step()
+def get_amount_coefficient(recipe_id, requested_servings):
+    information_response = SpoonacularUtils.get_recipe_information(recipe_id)
+    print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+    print(json.loads(r'' + information_response.text + '')['servings'])
+    return requested_servings/json.loads(r'' + information_response.text + '')['servings']
 
 def is_recipe_has_single_step_section(recipe_id):
     steps_response = SpoonacularUtils.get_steps(recipe_id)
@@ -181,17 +184,17 @@ def get_next_step():
         return tell(speech)
     return next_step
 
-def get_ingredients_to_speech(ingredients):
+def get_ingredients_to_speech(ingredients, amount_coefficient):
     last_ingredient = ingredients[-1]
     txt = ""
 
     for ingredient in ingredients:
         if ingredient['name'] == last_ingredient['name']:
-            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(amount=ingredient['amount']['metric']['value'],
+            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(amount=ingredient['amount']['metric']['value']*amount_coefficient,
                                                                          measure=ingredient['amount']['metric']['unit'],
                                                                          name=ingredient['name'])
         else:
-            txt = txt + "{amount} {measure} of {name}, ".format(amount=ingredient['amount']['metric']['value'],
+            txt = txt + "{amount} {measure} of {name}, ".format(amount=ingredient['amount']['metric']['value']*amount_coefficient,
                                                                 measure=ingredient['amount']['metric']['unit'],
                                                                 name=ingredient['name'])
     return txt

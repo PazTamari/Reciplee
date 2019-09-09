@@ -1,6 +1,6 @@
 import requests
 import json
-
+INFORMATION_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/information"
 SEARCH_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/search"
 INGREDIENTS_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/ingredientWidget.json"
 STEPS_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/analyzedInstructions"
@@ -25,3 +25,5 @@ def get_steps(id):
     querystring = {"stepBreakdown": "false"}
     return send_request("GET", STEPS_URL.format(id=id), HEADERS, querystring)
 
+def get_recipe_information(id):
+    return send_request("GET", INFORMATION_URL.format(id=id), HEADERS, None)
