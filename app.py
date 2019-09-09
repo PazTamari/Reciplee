@@ -96,17 +96,27 @@ def start_recipe():
 
 @assist.action('next-step')
 def next_step():
-    return get_step(int(get_current_step() + 1))
+    try:
+        return get_step(int(get_current_step() + 1))
+    except:
+        return tell("We encountered a problem, please ask for recipe again")
 
 @assist.action('previous-step')
 def previous_step():
-    return get_step((get_current_step() - 1))
+    try:
+        return get_step((get_current_step() - 1))
+    except:
+        return tell("We encountered a problem, please ask for recipe again")
 
 @assist.action('repeat-step')
 def repeat_step():
-    return get_step(int(get_current_step()))
+    try:
+        return get_step(int(get_current_step()))
+    except:
+        return tell("We encountered a problem, please ask for recipe again")
 
 def get_step(step_number):
+    print("The step number to get is {}".format(step_number))
     context = context_manager.get('make-food')
     requested_step = step_number
     steps = json.loads(str(context.parameters.get('recipe_steps')))
@@ -116,6 +126,8 @@ def get_step(step_number):
         speech = "You finished the recipe! bonappetit"
         context_manager.clear_all()
         return tell(speech)
+    if int(requested_step) < 0:
+        requested_step = requested_step + 1
 
     context_manager.set('make-food', 'current_step', int(requested_step))
     pre_speach = ""
@@ -136,6 +148,10 @@ def is_recipe_has_single_step_section(recipe_id):
     if len(steps_list) == 1:
         return True
     return False
+
+def fix_amount(amount, participants):
+    new_amount = amount * participants
+    return int(new_amount) if float(new_amount).is_integer() else str(round(new_amount, 2))
 
 #  TRY TO CLEAR CONTEXT
 # @assist.action('clear-contex')
@@ -179,12 +195,13 @@ def get_ingredients_to_speech(ingredients, amount_coefficient):
     txt = ""
 
     for ingredient in ingredients:
+        amount = fix_amount(ingredient['amount']['metric']['value'], amount_coefficient)
         if ingredient['name'] == last_ingredient['name']:
-            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(amount=ingredient['amount']['metric']['value']*amount_coefficient,
+            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(amount=amount,
                                                                          measure=ingredient['amount']['metric']['unit'],
                                                                          name=ingredient['name'])
         else:
-            txt = txt + "{amount} {measure} of {name}, ".format(amount=ingredient['amount']['metric']['value']*amount_coefficient,
+            txt = txt + "{amount} {measure} of {name}, ".format(amount=amount,
                                                                 measure=ingredient['amount']['metric']['unit'],
                                                                 name=ingredient['name'])
     return txt
