@@ -17,6 +17,10 @@ def get_recipes(diet, excludeIngredients, intolerances, number, offset, type, re
                    "offset": offset, "type": type, "query": recipe}
     response = send_request("GET", SEARCH_URL, HEADERS, querystring)
     return json.loads(r'' + response.text + '')['results']
+def get_recipes_by_ingridients(ingridients):
+    querystring = {"number":"10","ranking":"1","ignorePantry":"false","ingredients":','.join(ingridients)}
+    response = send_request("GET", SEARCH_URL, HEADERS, querystring)
+    return json.loads(r'' + response.text + '')['results']
 
 def get_ingredients(id):
     return send_request("GET", INGREDIENTS_URL.format(id=id), HEADERS, None)
