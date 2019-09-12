@@ -186,11 +186,11 @@ def get_ingredients_to_speech(ingredients, amount_coefficient):
 
     for ingredient in ingredients:
         if ingredient['name'] == last_ingredient['name']:
-            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(amount=round(ingredient['amount']*amount_coefficient),
+            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(amount=round(ingredient['amount']*amount_coefficient, 2),
                                                                          measure=ingredient['unit'],
                                                                          name=ingredient['name'])
         else:
-            txt = txt + "{amount} {measure} of {name}, ".format(amount=round(ingredient['amount']*amount_coefficient),
+            txt = txt + "{amount} {measure} of {name}, ".format(amount=round(ingredient['amount']*amount_coefficient, 2),
                                                                 measure=ingredient['unit'],
                                                                 name=ingredient['name'])
     return txt
