@@ -9,7 +9,7 @@ import json
 import requests
 import logging
 import SpoonacularUtils
-
+import re
 
 logging.getLogger('flask_assistant').setLevel(logging.DEBUG)
 
@@ -32,12 +32,14 @@ assist = Assistant(app, route='/', project_id="reciplee-iubkfl")
 ingredient_string_template = "Ok you need {amount} {measure} of {name}\n"
 
 @assist.action('get-recipes')
-def get_recipes(recipe, participants, diet=None, excludeIngredients=None, intolerances=None, type=None):
+def get_recipes(participants, recipe=None, ingredients=None, diet=None, excludeIngredients=None, intolerances=None, type=None):
     # print(app.mongo.get_ingredient(1))
     # recipe_doc = app.mongo.get_translated_recipe(recipe)
     # final = participants/recipe_doc['amount']
-
-    recipes = SpoonacularUtils.get_recipes(diet, excludeIngredients, intolerances, RECIPES_TO_PULL, DEFAULT_OFFSET,
+    if ingredients:
+        recipes= SpoonacularUtils.get_recipes_by_ingridients(ingredients)
+    else:
+        recipes = SpoonacularUtils.get_recipes(diet, excludeIngredients, intolerances, RECIPES_TO_PULL, DEFAULT_OFFSET,
                                               type, recipe)
 
     if len(recipes) == 0:
@@ -58,16 +60,19 @@ def choose_current():
     recipes = context.parameters.get('recipes')
     current_recipe = int(context.parameters.get('current_recipe_index'))
     recipe_id = int(recipes[current_recipe]['id'])
+    recipe_info_response = SpoonacularUtils.get_recipe_information(recipe_id)
+    recipe_info = json.loads(r'' + recipe_info_response.text + '')
 
-    ingredients_response = SpoonacularUtils.get_ingredients(recipe_id)
-    steps_response = SpoonacularUtils.get_steps(recipe_id)
-    amount_coefficient = get_amount_coefficient(recipe_id, context.parameters.get('participants'))
-    context_manager.set("make-food", "recipe_steps", steps_response.text)
+    amount_coefficient = get_amount_coefficient(recipe_info['servings'], context.parameters.get('participants'))
+    steps = re.split('[;.]', recipe_info['instructions'])
+
+    context_manager.set("make-food", "recipe_steps", steps)
+
     speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}." \
              " Do you want to start making it?".format(
         random=choice(AWESOME_LIST),
         recipe=recipes[current_recipe]['title'],
-        ingredients=get_ingredients_to_speech(eval(ingredients_response.text)['ingredients'], amount_coefficient))
+        ingredients=get_ingredients_to_speech(recipe_info['extendedIngredients'], amount_coefficient))
     return ask(speech)
 
 @assist.action('get-recipe.choose-another')
@@ -119,9 +124,11 @@ def get_step(step_number):
     print("The step number to get is {}".format(step_number))
     context = context_manager.get('make-food')
     requested_step = step_number
-    steps = json.loads(str(context.parameters.get('recipe_steps')))
+    print('TEST')
+    print(context.parameters.get('recipe_steps'))
+    steps = context.parameters.get('recipe_steps')
 
-    if int(requested_step) >= len(steps[0].get("steps")):
+    if int(requested_step) >= len(steps):
         # no more steps
         speech = "You finished the recipe! bonappetit"
         context_manager.clear_all()
@@ -135,12 +142,11 @@ def get_step(step_number):
         pre_speach = "I will now tell you how to make this recipe. " \
                      "You can ask for the next, previous or current step. Let's start with the first step! \n"
 
-    return tell(pre_speach + steps[0].get("steps")[int(requested_step)].get("step"))
+    return ask(pre_speach + steps[int(requested_step)])
 
 
-def get_amount_coefficient(recipe_id, requested_servings):
-    information_response = SpoonacularUtils.get_recipe_information(recipe_id)
-    return requested_servings/json.loads(r'' + information_response.text + '')['servings']
+def get_amount_coefficient(recipe_servings, requested_servings):
+    return requested_servings/recipe_servings
 
 def is_recipe_has_single_step_section(recipe_id):
     steps_response = SpoonacularUtils.get_steps(recipe_id)
