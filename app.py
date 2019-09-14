@@ -31,20 +31,7 @@ app = FlaskApp(__name__)
 assist = Assistant(app, route='/', project_id="reciplee-iubkfl")
 ingredient_string_template = "Ok you need {amount} {measure} of {name}\n"
 
-@assist.action('get-recipes')
-def get_recipes(participants, recipe=None, ingredients=None, diet=None, excludeIngredients=None, intolerances=None, type=None):
-    # print(app.mongo.get_ingredient(1))
-    # recipe_doc = app.mongo.get_translated_recipe(recipe)
-    # final = participants/recipe_doc['amount']
-    if ingredients:
-        recipes= SpoonacularUtils.get_recipes_by_ingridients(ingredients)
-    else:
-        recipes = SpoonacularUtils.get_recipes(diet, excludeIngredients, intolerances, RECIPES_TO_PULL, DEFAULT_OFFSET,
-                                              type, recipe)
-
-    if len(recipes) == 0:
-        context_manager.clear_all()
-        return tell(recipe_not_exist(recipe))
+def handle_recipes(recipes, participants):
 
     context_manager.add("make-food", lifespan=LIFESPAN)
     context_manager.set("make-food", "recipes", recipes)
@@ -52,6 +39,25 @@ def get_recipes(participants, recipe=None, ingredients=None, diet=None, excludeI
     context_manager.set("make-food", "participants", participants)
 
     return choose_another()
+
+@assist.action('get-recipes-by-ingredients')
+def get_recipes_by_ingredients(ingredients, participants):
+    print("with ingredients")
+    recipes = SpoonacularUtils.get_recipes_by_ingridients(ingredients, RECIPES_TO_PULL)
+    if len(recipes) == 0:
+        context_manager.clear_all()
+        return tell(recipe_not_exist( "with {} ".format(','.join(ingredients))))
+    return handle_recipes(recipes, participants)
+
+@assist.action('get-recipes')
+def get_recipes(participants, recipe=None, diet=None, excludeIngredients=None, intolerances=None, type=None):
+    recipes = SpoonacularUtils.get_recipes(diet, excludeIngredients, intolerances, RECIPES_TO_PULL, DEFAULT_OFFSET,
+                                              type, recipe)
+    if len(recipes) == 0:
+        context_manager.clear_all()
+        return tell(recipe_not_exist("for {} ".format(recipe)))
+    return handle_recipes(recipes, participants)
+
 
 
 @assist.action('get-recipe.choose-current')
@@ -64,9 +70,9 @@ def choose_current():
     recipe_info = json.loads(r'' + recipe_info_response.text + '')
 
     amount_coefficient = get_amount_coefficient(recipe_info['servings'], context.parameters.get('participants'))
-    steps = re.split('[;.]', recipe_info['instructions'])
-
-    context_manager.set("make-food", "recipe_steps", steps)
+    # steps = re.split('[;.]', recipe_info['instructions'])
+    steps_response = SpoonacularUtils.get_steps(recipe_id)
+    context_manager.set("make-food", "recipe_steps", steps_response.text)
 
     speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}." \
              " Do you want to start making it?".format(
@@ -124,11 +130,9 @@ def get_step(step_number):
     print("The step number to get is {}".format(step_number))
     context = context_manager.get('make-food')
     requested_step = step_number
-    print('TEST')
-    print(context.parameters.get('recipe_steps'))
-    steps = context.parameters.get('recipe_steps')
+    steps = json.loads(str(context.parameters.get('recipe_steps')))
 
-    if int(requested_step) >= len(steps):
+    if int(requested_step) >= len(steps[0].get("steps")):
         # no more steps
         speech = "You finished the recipe! bonappetit"
         context_manager.clear_all()
@@ -142,7 +146,7 @@ def get_step(step_number):
         pre_speach = "I will now tell you how to make this recipe. " \
                      "You can ask for the next, previous or current step. Let's start with the first step! \n"
 
-    return ask(pre_speach + steps[int(requested_step)])
+    return ask(pre_speach + steps[0].get("steps")[int(requested_step)].get("step"))
 
 
 def get_amount_coefficient(recipe_servings, requested_servings):
@@ -201,20 +205,15 @@ def get_ingredients_to_speech(ingredients, amount_coefficient):
     txt = ""
 
     for ingredient in ingredients:
-        amount = fix_amount(ingredient['amount']['metric']['value'], amount_coefficient)
         if ingredient['name'] == last_ingredient['name']:
-            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(amount=amount,
-                                                                         measure=ingredient['amount']['metric']['unit'],
-                                                                         name=ingredient['name'])
+            txt = txt[0:-2] + " and {originalString}".format(originalString=ingredient['originalString'])
         else:
-            txt = txt + "{amount} {measure} of {name}, ".format(amount=amount,
-                                                                measure=ingredient['amount']['metric']['unit'],
-                                                                name=ingredient['name'])
+            txt = txt + "{originalString}, ".format(originalString=ingredient['originalString'])
     return txt
 
 
 def recipe_not_exist(recipe):
-    return "Could not find a recipe for {}. Please search for a different recipe?".format(recipe)
+    return "Could not find a recipe {}. Please search for a different recipe?".format(recipe)
 
 
 # run the app

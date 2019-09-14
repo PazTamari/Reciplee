@@ -2,6 +2,7 @@ import requests
 import json
 INFORMATION_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/information"
 SEARCH_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/search"
+SEARCH_BY_INGREDIENTS_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/findByIngredients"
 INGREDIENTS_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/ingredientWidget.json"
 STEPS_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/analyzedInstructions"
 HEADERS = {
@@ -17,10 +18,12 @@ def get_recipes(diet, excludeIngredients, intolerances, number, offset, type, re
                    "offset": offset, "type": type, "query": recipe}
     response = send_request("GET", SEARCH_URL, HEADERS, querystring)
     return json.loads(r'' + response.text + '')['results']
-def get_recipes_by_ingridients(ingridients):
-    querystring = {"number":"10","ranking":"1","ignorePantry":"false","ingredients":','.join(ingridients)}
-    response = send_request("GET", SEARCH_URL, HEADERS, querystring)
-    return json.loads(r'' + response.text + '')['results']
+
+def get_recipes_by_ingridients(ingridients, number):
+    querystring = {"number":number, "ranking":"1","ignorePantry":"false","ingredients":',+'.join(ingridients)}
+    response = send_request("GET", SEARCH_BY_INGREDIENTS_URL, HEADERS, querystring)
+    return json.loads(r'' + response.text + '')
+
 
 def get_ingredients(id):
     return send_request("GET", INGREDIENTS_URL.format(id=id), HEADERS, None)
