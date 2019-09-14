@@ -29,7 +29,7 @@ def get_ingredients(id):
     return send_request("GET", INGREDIENTS_URL.format(id=id), HEADERS, None)
 
 def get_steps(id):
-    querystring = {"stepBreakdown": "false"}
+    querystring = {"stepBreakdown": "true"}
     return send_request("GET", STEPS_URL.format(id=id), HEADERS, querystring)
 
 def get_recipe_information(id):
