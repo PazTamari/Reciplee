@@ -5,6 +5,7 @@ SEARCH_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipe
 SEARCH_BY_INGREDIENTS_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/findByIngredients"
 INGREDIENTS_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/ingredientWidget.json"
 STEPS_URL = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/{id}/analyzedInstructions"
+Wine_URL = url = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/food/wine/pairing"
 HEADERS = {
     'x-rapidapi-host': "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com",
     'x-rapidapi-key': "0337527ffemsh1130c076beb971dp149cd5jsn1ec4dfe855bd"
@@ -34,3 +35,7 @@ def get_steps(id):
 
 def get_recipe_information(id):
     return send_request("GET", INFORMATION_URL.format(id=id), HEADERS, None)
+
+def get_wine(food):
+    querystring = {"food": food}
+    return send_request("GET", Wine_URL, HEADERS, querystring)

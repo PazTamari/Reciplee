@@ -47,15 +47,18 @@ def get_recipes_by_ingredients(ingredients, participants):
     if len(recipes) == 0:
         context_manager.clear_all()
         return tell(recipe_not_exist( "with {} ".format(','.join(ingredients))))
+    context_manager.set("make-food", "recipe_name", ingredients[0])
     return handle_recipes(recipes, participants)
 
 @assist.action('get-recipes')
-def get_recipes(participants, recipe=None, diet=None, excludeIngredients=None, intolerances=None, type=None):
+
+def get_recipes(participants, recipe, diet=None, excludeIngredients=None, intolerances=None, type=None):
     recipes = SpoonacularUtils.get_recipes(diet, excludeIngredients, intolerances, RECIPES_TO_PULL, DEFAULT_OFFSET,
                                               type, recipe)
     if len(recipes) == 0:
         context_manager.clear_all()
         return tell(recipe_not_exist("for {} ".format(recipe)))
+    context_manager.set("make-food", "recipe_name", recipe)
     return handle_recipes(recipes, participants)
 
 
@@ -68,6 +71,7 @@ def choose_current():
     recipe_id = int(recipes[current_recipe]['id'])
     recipe_info_response = SpoonacularUtils.get_recipe_information(recipe_id)
     recipe_info = json.loads(r'' + recipe_info_response.text + '')
+    context_manager.set("make-food", "chosen_recipe", recipe_info)
 
     amount_coefficient = get_amount_coefficient(recipe_info['servings'], context.parameters.get('participants'))
     # steps = re.split('[;.]', recipe_info['instructions'])
@@ -125,6 +129,23 @@ def repeat_step():
         return get_step(int(get_current_step()))
     except:
         return tell("We encountered a problem, please ask for recipe again")
+
+@assist.action('wine-recommendation')
+def wine_recommendation():
+    context = context_manager.get('make-food')
+    chosen_recipe = context.parameters.get('chosen_recipe')
+    print(chosen_recipe)
+    wine_response = SpoonacularUtils.get_wine(chosen_recipe)
+    try:
+        wine = json.loads(r'' + wine_response.text + '')['pairedWines'][0]
+        if not wine:
+            wine = "pinot noir"
+
+    except:
+        wine = 'gruener veltliner'
+    print(wine)
+    return tell("{} will be perfect".format(wine))
+
 
 def get_step(step_number):
     print("The step number to get is {}".format(step_number))
@@ -206,10 +227,20 @@ def get_ingredients_to_speech(ingredients, amount_coefficient):
 
     for ingredient in ingredients:
         if ingredient['name'] == last_ingredient['name']:
-            txt = txt[0:-2] + " and {originalString}".format(originalString=ingredient['originalString'])
+            txt = txt[0:-2] + " and {amount} {measure} of {name}".format(
+                amount=round(ingredient['amount'] * amount_coefficient, 2),
+                measure=ingredient['unit'],
+                name=ingredient['name'])
         else:
-            txt = txt + "{originalString}, ".format(originalString=ingredient['originalString'])
+            txt = txt + "{amount} {measure} of {name}, ".format(
+                amount=round(ingredient['amount'] * amount_coefficient, 2),
+                measure=ingredient['unit'],
+                name=ingredient['name'])
     return txt
+
+
+def recipe_not_exist(recipe):
+    return "Could not find a recipe for {}. Please search for a different recipe?".format(recipe)
 
 
 def recipe_not_exist(recipe):
