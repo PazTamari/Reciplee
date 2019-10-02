@@ -31,12 +31,13 @@ app = FlaskApp(__name__)
 assist = Assistant(app, route='/', project_id="reciplee-iubkfl")
 ingredient_string_template = "Ok you need {amount} {measure} of {name}\n"
 
-def handle_recipes(recipes, participants):
+def handle_recipes(recipes, participants, recipe_name):
 
     context_manager.add("make-food", lifespan=LIFESPAN)
     context_manager.set("make-food", "recipes", recipes)
     context_manager.set("make-food", "current_recipe_index", -1)
     context_manager.set("make-food", "participants", participants)
+    context_manager.set("make-food", "recipe_name", recipe_name)
 
     return choose_another()
 
@@ -47,19 +48,16 @@ def get_recipes_by_ingredients(ingredients, participants):
     if len(recipes) == 0:
         context_manager.clear_all()
         return tell(recipe_not_exist( "with {} ".format(','.join(ingredients))))
-    context_manager.set("make-food", "recipe_name", ingredients[0])
-    return handle_recipes(recipes, participants)
+    return handle_recipes(recipes, participants, ingredients[0])
 
 @assist.action('get-recipes')
-
 def get_recipes(participants, recipe, diet=None, excludeIngredients=None, intolerances=None, type=None):
     recipes = SpoonacularUtils.get_recipes(diet, excludeIngredients, intolerances, RECIPES_TO_PULL, DEFAULT_OFFSET,
                                               type, recipe)
     if len(recipes) == 0:
         context_manager.clear_all()
         return tell(recipe_not_exist("for {} ".format(recipe)))
-    context_manager.set("make-food", "recipe_name", recipe)
-    return handle_recipes(recipes, participants)
+    return handle_recipes(recipes, participants, recipe)
 
 
 
