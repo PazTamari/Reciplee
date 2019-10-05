@@ -47,7 +47,7 @@ def get_recipes_by_ingredients(ingredients, participants):
     recipes = SpoonacularUtils.get_recipes_by_ingridients(ingredients, RECIPES_TO_PULL)
     if len(recipes) == 0:
         context_manager.clear_all()
-        return tell(recipe_not_exist( "with {} ".format(','.join(ingredients))))
+        return tell(recipe_not_exist("with {} ".format(','.join(ingredients))))
     return handle_recipes(recipes, participants, ingredients[0])
 
 @assist.action('get-recipes')
@@ -60,6 +60,10 @@ def get_recipes(participants, recipe, diet=None, excludeIngredients=None, intole
     return handle_recipes(recipes, participants, recipe)
 
 
+@assist.action('next-step - no')
+def finish():
+    context_manager.clear_all()
+    return tell("Have a {} day!".format(choice(AWESOME_LIST)))
 
 @assist.action('get-recipe.choose-current')
 def choose_current():
@@ -73,14 +77,16 @@ def choose_current():
 
     amount_coefficient = get_amount_coefficient(recipe_info['servings'], context.parameters.get('participants'))
     # steps = re.split('[;.]', recipe_info['instructions'])
+    print(recipe_id)
     steps_response = SpoonacularUtils.get_steps(recipe_id)
     context_manager.set("make-food", "recipe_steps", steps_response.text)
 
     speech = "{random} choice! We found a recipe for {recipe}. The ingredients are: {ingredients}." \
-             " Do you want to start making it?".format(
-        random=choice(AWESOME_LIST),
-        recipe=recipes[current_recipe]['title'],
-        ingredients=get_ingredients_to_speech(recipe_info['extendedIngredients'], amount_coefficient))
+                 " Do you want to start making it?".format(
+            random=choice(AWESOME_LIST),
+            recipe=recipes[current_recipe]['title'],
+            ingredients=get_ingredients_to_speech(recipe_info['extendedIngredients'], amount_coefficient))
+
     return ask(speech)
 
 @assist.action('get-recipe.choose-another')
@@ -90,15 +96,13 @@ def choose_another():
     current_recipe = int(context.parameters.get('current_recipe_index') + 1)
     context_manager.set("make-food", "current_recipe_index", current_recipe)
     recipe_id = int(recipes[current_recipe]['id'])
-
     if len(recipes) <= current_recipe + 1:
         return tell("Sorry but I don't have any more recipes to make, please ask for another recipe")
 
     # RECIPE WITH 2 STEPS SECTIONS: recipe_id = 324694
     if not is_recipe_has_single_step_section(recipe_id):
-        choose_another()
+        return choose_another()
 
-    context_manager.set("make-food", "current_recipe_index", current_recipe)
     speech = "Do you want to make {choice}?".format(choice=recipes[current_recipe]['title'])
     return ask(speech)
 
@@ -132,7 +136,6 @@ def repeat_step():
 def wine_recommendation():
     context = context_manager.get('make-food')
     chosen_recipe = context.parameters.get('chosen_recipe')
-    print(chosen_recipe)
     wine_response = SpoonacularUtils.get_wine(chosen_recipe)
     try:
         wine = json.loads(r'' + wine_response.text + '')['pairedWines'][0]
@@ -141,7 +144,6 @@ def wine_recommendation():
 
     except:
         wine = 'gruener veltliner'
-    print(wine)
     return tell("{} will be perfect".format(wine))
 
 
@@ -150,12 +152,10 @@ def get_step(step_number):
     context = context_manager.get('make-food')
     requested_step = step_number
     steps = json.loads(str(context.parameters.get('recipe_steps')))
-
     if int(requested_step) >= len(steps[0].get("steps")):
         # no more steps
-        speech = "You finished the recipe! bonappetit"
-        context_manager.clear_all()
-        return tell(speech)
+        speech = "You finished the recipe! bonappetit. Can I help with anything else?"
+        return ask(speech)
     if int(requested_step) < 0:
         requested_step = requested_step + 1
 
