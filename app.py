@@ -2,14 +2,11 @@
 from flask import Flask
 from database import database
 from flask_assistant import context_manager
-from flask_assistant import Assistant, tell, ask, event
-from Recipe import Recipe
+from flask_assistant import Assistant, tell, ask
 from random import choice
 import json
-import requests
 import logging
 import SpoonacularUtils
-import re
 
 logging.getLogger('flask_assistant').setLevel(logging.DEBUG)
 
@@ -182,47 +179,14 @@ def fix_amount(amount, participants):
     new_amount = amount * participants
     return int(new_amount) if float(new_amount).is_integer() else str(round(new_amount, 2))
 
-#  TRY TO CLEAR CONTEXT
-# @assist.action('clear-contex')
-# def clear_contex():
-#     context = context_manager.get('make-food')
-#     print(dir(context))
-#     context.lifespan=0
-#     context_manager.update([{"name":"/contexts/make-food"}])
-#
-#     context = context_manager.add('test_clean')
-#
-#     # context.lifespan = 0
-#     # context_manager.clear_all()
-#     if context != None:
-#         return tell("exist!")
-#     else:
-#         return tell("not exist")
-
-
-
-
-
-#@assist.action('get-recipe - yes - yes - more')
-#def more():
-#    context_manager.set('make-food', 'current_step', int(get_current_step()))
-#    return current_step()
-
-
-
-
-
 def get_current_step():
-
     context = context_manager.get('make-food')
     current_step = context.parameters.get('current_step')
-
     return current_step
 
 def get_ingredients_to_speech(ingredients, amount_coefficient):
     last_ingredient = ingredients[-1]
     txt = ""
-
     for ingredient in ingredients:
         if ingredient['name'] == last_ingredient['name']:
             txt = txt[0:-2] + " and {amount} {measure} of {name}".format(
@@ -240,10 +204,8 @@ def get_ingredients_to_speech(ingredients, amount_coefficient):
 def recipe_not_exist(recipe):
     return "Could not find a recipe for {}. Please search for a different recipe?".format(recipe)
 
-
 def recipe_not_exist(recipe):
     return "Could not find a recipe {}. Please search for a different recipe?".format(recipe)
-
 
 # run the app
 if __name__ == '__main__':
