@@ -13,7 +13,7 @@ logging.getLogger('flask_assistant').setLevel(logging.DEBUG)
 FIRST_STEP = 0
 LIFESPAN = 100
 AWESOME_LIST = ["Awesome", "Great", "Wonderful", "What a"]
-RECIPES_TO_PULL = 10
+RECIPES_TO_PULL = 15
 DEFAULT_OFFSET = 0
 
 
